@@ -4,6 +4,8 @@ using RoomManagement;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using RoomManagement.Helpers.HealthCheck;
 using RoomManagement.Middleware;
+using Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,8 +37,27 @@ app.MapHealthChecks("/alive", new HealthCheckOptions
     //Predicate = healthCheck => healthCheck.Tags.Contains("ready"),
     ResponseWriter = HealthCheckAlive.WriteAsync,
 });
+
+MigrationsDatabase(app);
+
 app.MapControllers();
 app.Run();
+
+static void MigrationsDatabase(WebApplication app)
+{
+    using var scope = app.Services.CreateScope();
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<ApplicationDbContext>();
+        context.Database.Migrate();
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An Error occurred sedding the Database");
+    }
+}
 
 namespace RoomManagement
 {
